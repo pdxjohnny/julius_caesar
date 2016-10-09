@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
+import os
 import sys
+
+import roman
 
 fileName = sys.argv[1]
 findName = sys.argv[2].upper()
@@ -9,7 +12,13 @@ inScene = False
 inCharacter = False
 firstBlock = False
 
+currCharacter = ''
+
+line = 0
+
 PLAY = {}
+PLAY_LINES = {}
+DEBUG = os.getenv('DEBUG', False)
 
 START_ACT = '  ACT'
 START_SCENE = '  SCENE'
@@ -25,62 +34,78 @@ def createIfEmpty(obj, key):
     if not key in obj:
         obj[key] = {}
 
-def onLine(l):
+def flushCharacter():
     global PLAY
     global inAct
     global inScene
     global inCharacter
+    global currCharacter
+    if DEBUG:
+        print(inCharacter)
+        print(currCharacter)
+    if inCharacter:
+        PLAY[inAct][inScene].append((inCharacter, currCharacter))
+
+def onLine(l):
+    global PLAY
+    global PLAY_LINES
+    global line
+    global inAct
+    global inScene
+    global inCharacter
+    global currCharacter
     global firstBlock
     l = l.rstrip()
     if isSection(l, START_ACT):
-        inAct = l.split()[1]
-        # print('Act', inAct)
+        inAct = roman.fromRoman(l.split()[1])
+        if DEBUG:
+            print('Act', inAct)
         createIfEmpty(PLAY, inAct)
         inScene = False
         inCharacter = False
         return
     if isSection(l, START_SCENE):
-        inScene = l.split()[1][:-1]
-        # print('Scene', inScene)
+        inScene = roman.fromRoman(l.split()[1][:-1])
+        if DEBUG:
+            print('Scene', inScene)
         createIfEmpty(PLAY[inAct], inScene)
-        createIfEmpty(PLAY[inAct], inScene + '_line')
-        PLAY[inAct][inScene + '_line'] = []
+        PLAY[inAct][inScene] = []
         inCharacter = False
+        line = 0
         return
     if isSection(l, START_CHARACTER) and \
             l[len(START_CHARACTER) + 1] != ' ' and \
             len([word for word in l.split() if word[0].isupper()]) == len(l.split()):
+        flushCharacter()
         inCharacter = l.strip().upper()
-        firstBlock = False
-        # print('Character', inCharacter)
-        createIfEmpty(PLAY[inAct][inScene], inCharacter)
-        PLAY[inAct][inScene][inCharacter] = ''
+        currCharacter = ''
+        firstBlock = True
+        if DEBUG:
+            print('Character', inCharacter)
         return
-    if inAct and inScene and inCharacter:
-        if len(l.strip()) == 0:
-            if not firstBlock:
-                firstBlock = True
-            else:
-                print()
-                print(inCharacter)
-                print(PLAY[inAct][inScene][inCharacter][:-1], len(PLAY[inAct][inScene + '_line']))
-                inCharacter = False
+    if inAct and inScene and inCharacter and firstBlock:
+        if len(l.strip()) == 0 and firstBlock:
+            if len(currCharacter) > 0:
                 firstBlock = False
             return
-        # print(inAct, inScene, inCharacter)
-        PLAY[inAct][inScene][inCharacter] += l + '\n'
-        PLAY[inAct][inScene + '_line'].append(l.strip().upper())
-        if findName in l.strip().upper():
-            return
-            print()
-            print('Act', inAct, 'Scene', inScene, inCharacter, 'Line:', len(PLAY[inAct][inScene + '_line']))
-            print('\t', l.strip())
+        line += 1
+        PLAY_LINES[''.join([str(inAct), str(inScene), inCharacter, l.strip().upper()])] = line
+        currCharacter += l + '\n'
 
 with open(fileName, 'rb') as f:
     for l in f:
         l = l.decode('utf-8')
         onLine(l)
-if inCharacter:
-    print()
-    print(inCharacter)
-    print(PLAY[inAct][inScene][inCharacter][:-1], len(PLAY[inAct][inScene + '_line']))
+flushCharacter()
+
+for act in PLAY:
+    for scene in PLAY[act]:
+        for character, l in PLAY[act][scene]:
+            line = PLAY_LINES[''.join([str(act), str(scene), character,
+                l.split('\n')[0].strip().upper()])]
+            print('Act', act, 'Scene', scene, character, 'Line:', line)
+            continue
+            if findName in l.strip().upper():
+                print()
+                print('Act', act, 'Scene', scene, character, 'Line:', line)
+                print('\t', l)
