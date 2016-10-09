@@ -101,7 +101,7 @@ flushCharacter()
 for act in PLAY:
     for scene in PLAY[act]:
         for character, lines in PLAY[act][scene]:
-            if findName in lines.strip().upper():
+            if findName == character or findName in lines.strip().upper():
                 print()
                 print('Act', act, 'Scene', scene, character)
                 for l in lines.split('\n')[:-1]:
