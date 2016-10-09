@@ -100,12 +100,12 @@ flushCharacter()
 
 for act in PLAY:
     for scene in PLAY[act]:
-        for character, l in PLAY[act][scene]:
-            line = PLAY_LINES[''.join([str(act), str(scene), character,
-                l.split('\n')[0].strip().upper()])]
-            print('Act', act, 'Scene', scene, character, 'Line:', line)
-            continue
-            if findName in l.strip().upper():
+        for character, lines in PLAY[act][scene]:
+            if findName in lines.strip().upper():
                 print()
-                print('Act', act, 'Scene', scene, character, 'Line:', line)
-                print('\t', l)
+                print('Act', act, 'Scene', scene, character)
+                for l in lines.split('\n')[:-1]:
+                    ln = PLAY_LINES[''.join([str(act), str(scene), character,
+                        l.strip().upper()])]
+                    # print('%-70s%d' % (l.rstrip(), ln))
+                    print('%-4d%s' % (ln, l.rstrip()))
